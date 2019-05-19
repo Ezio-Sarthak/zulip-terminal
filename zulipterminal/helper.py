@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from functools import wraps
 from itertools import chain, combinations
 from re import ASCII, MULTILINE, findall, match
+from tempfile import NamedTemporaryFile
 from threading import Thread
 from typing import (
     Any,
@@ -25,6 +26,7 @@ from typing import (
 from urllib.parse import unquote
 
 import lxml.html
+import requests
 from typing_extensions import TypedDict
 
 from zulipterminal.api_types import Composition, EmojiType, Message
@@ -732,3 +734,52 @@ def suppress_output() -> Iterator[None]:
     finally:
         os.dup2(stdout, 1)
         os.dup2(stderr, 2)
+
+
+@asynch
+def process_media(controller: Any, media_link: str) -> None:
+    media_name = media_link.split("/")[-1]
+    client = controller.client
+    auth = requests.auth.HTTPBasicAuth(client.email, client.api_key)
+
+    with requests.get(media_link, auth=auth, stream=True) as r:
+        r.raise_for_status()
+        with NamedTemporaryFile(
+            mode="wb", delete=False, prefix="zt-", suffix="-{}".format(media_name)
+        ) as f:
+            media_path = f.name
+            for chunk in r.iter_content(chunk_size=8192):
+                if chunk:  # Filter out keep-alive new chunks.
+                    f.write(chunk)
+
+    if WSL:
+        command = f'explorer.exe `wslpath -w "{media_path}"`'  # Needs testing.
+    elif LINUX:
+        command = f"xdg-open {media_path}"
+    elif MACOS:
+        command = f"open {media_path}"
+
+    tool = command.split()[0]
+    open_media(controller, command, tool)
+
+
+@asynch
+def open_media(controller: Any, command: str, tool: str) -> None:
+    error = []
+    try:
+        process = subprocess.run(
+            command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True
+        )
+        exit_status = process.returncode
+        if exit_status != 0:
+            error = [
+                " The tool ",
+                ("bold", tool),
+                " did not run successfully" ". Exited with ",
+                ("bold", str(exit_status)),
+            ]
+    except FileNotFoundError:
+        error = [" The tool ", ("bold", tool), " could not be found"]
+
+    if error:
+        controller.report_error(error)

@@ -11,8 +11,13 @@ from zulipterminal.helper import (
     index_messages,
     notify,
     notify_if_message_sent_outside_narrow,
+    open_media,
     powerset,
+    process_media,
 )
+
+
+SERVER_URL = "https://chat.zulip.zulip"
 
 
 def test_index_messages_narrow_all_messages(
@@ -495,3 +500,74 @@ def test_get_unused_fence(message_content, expected_fence):
     generated_fence = get_unused_fence(message_content)
 
     assert generated_fence == expected_fence
+
+
+def test_process_media(
+    mocker,
+    media_path="/tmp/zt-somerandomtext-image.png",
+    media_link=SERVER_URL + "/user_uploads/path/image.png",
+):
+    mocker.patch("zulipterminal.helper.requests")
+    mocker.patch("zulipterminal.helper.open")
+    (
+        mocker.patch(
+            "zulipterminal.helper.NamedTemporaryFile"
+        ).return_value.__enter__.return_value.name
+    ) = media_path
+    # The command, which is platform dependent, does not matter for the test.
+    mocker.patch("zulipterminal.helper.LINUX", True)
+    controller = mocker.Mock()
+    mocked_open_media = mocker.patch("zulipterminal.helper.open_media")
+
+    process_media(controller, media_link)
+
+    mocked_open_media.assert_called_once_with(
+        controller, f"xdg-open {media_path}", "xdg-open"
+    )
+
+
+@pytest.mark.parametrize(
+    "returncode, error",
+    [
+        (0, []),
+        (
+            1,
+            [
+                " The tool ",
+                ("bold", "some_tool"),
+                " did not run successfully" ". Exited with ",
+                ("bold", "1"),
+            ],
+        ),
+    ],
+)
+def test_open_media(
+    mocker,
+    returncode,
+    error,
+    command="xdg-open /tmp/zt-somerandomtext-image.png",
+    tool="some_tool",
+):
+    mocked_run = mocker.patch("zulipterminal.helper.subprocess.run")
+    mocked_run.return_value.returncode = returncode
+    controller = mocker.Mock()
+
+    open_media(controller, command, tool)
+
+    assert mocked_run.called
+    if error:
+        controller.report_error.assert_called_once_with(error)
+
+
+def test_open_media_exception(
+    mocker,
+    command="xdg-open /tmp/zt-somerandomtext-image.png",
+    tool="some_tool",
+    error=[" The tool ", ("bold", "some_tool"), " could not be found"],
+):
+    mocker.patch("zulipterminal.helper.subprocess.run", side_effect=FileNotFoundError())
+    controller = mocker.Mock()
+
+    open_media(controller, command, tool)
+
+    controller.report_error.assert_called_once_with(error)
