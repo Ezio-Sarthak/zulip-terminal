@@ -518,12 +518,11 @@ def test_process_media(
     # The command, which is platform dependent, does not matter for the test.
     mocker.patch("zulipterminal.helper.LINUX", True)
     controller = mocker.Mock()
-    mocked_open_media = mocker.patch("zulipterminal.helper.open_media")
 
     process_media(controller, media_link, callback)
 
-    mocked_open_media.assert_called_once_with(
-        controller, f"xdg-open {media_path}", "xdg-open"
+    controller.show_media_confirmation_popup.assert_called_once_with(
+        open_media, f"xdg-open {media_path}", "xdg-open", media_path
     )
 
 

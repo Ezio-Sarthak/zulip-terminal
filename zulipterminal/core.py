@@ -350,6 +350,23 @@ class Controller:
         """
         self.view.set_footer_text(text, "task:warning", 3)
 
+    def show_media_confirmation_popup(
+        self, func: Any, command: str, tool: str, media_path: str
+    ) -> None:
+        callback = partial(func, self, command, tool)
+        question = urwid.Text(
+            [
+                "Your requested media has been downloaded to:\n",
+                ("bold", media_path),
+                "\n\nDo you want the application to open it with ",
+                ("bold", tool),
+                "?",
+            ]
+        )
+        self.loop.widget = PopUpConfirmationView(
+            self, question, callback, location="center"
+        )
+
     def search_messages(self, text: str) -> None:
         # Search for a text in messages
         self.model.index["search"].clear()

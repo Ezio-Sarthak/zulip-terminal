@@ -765,7 +765,7 @@ def process_media(
         command = f"open {media_path}"
 
     tool = command.split()[0]
-    open_media(controller, command, tool)
+    controller.show_media_confirmation_popup(open_media, command, tool, media_path)
 
 
 @asynch
