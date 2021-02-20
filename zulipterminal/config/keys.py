@@ -331,6 +331,11 @@ KEY_BINDINGS: 'OrderedDict[str, KeyBinding]' = OrderedDict([
         'help_text': 'Clear compose box',
         'key_category': 'msg_compose',
     }),
+    ('CAPTURE_SCREEN', {
+        'keys': ['meta c'],
+        'help_text': 'Capture screenshot of the window',
+        'key_category': 'general',
+    }),
 ])
 
 HELP_CATEGORIES = OrderedDict([
