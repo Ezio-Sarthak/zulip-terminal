@@ -190,6 +190,8 @@ class WriteBox(urwid.Pile):
             key=primary_key_for_command("AUTOCOMPLETE"),
             key_reverse=primary_key_for_command("AUTOCOMPLETE_REVERSE"),
         )
+        self.msg_write_box.set_completer_delims("\t\n;")
+
         self.header_write_box = urwid.Columns([self.to_write_box])
         header_line_box = urwid.LineBox(
             self.header_write_box,
@@ -311,6 +313,8 @@ class WriteBox(urwid.Pile):
             key=primary_key_for_command("AUTOCOMPLETE"),
             key_reverse=primary_key_for_command("AUTOCOMPLETE_REVERSE"),
         )
+        self.msg_write_box.set_completer_delims("\t\n;")
+
         self.stream_write_box = ReadlineEdit(
             edit_text=caption, max_char=self.model.max_stream_name_length
         )
