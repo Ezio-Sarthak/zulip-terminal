@@ -20,6 +20,7 @@ from zulipterminal.config.keys import (
     keys_for_command,
     primary_key_for_command,
 )
+from zulipterminal.config.regexes import REGEX_AUTOCOMPLETE_STREAM_TOPIC
 from zulipterminal.config.symbols import (
     INVALID_MARKER,
     MESSAGE_CONTENT_MARKER,
@@ -462,6 +463,14 @@ class WriteBox(urwid.Pile):
         #        anything; this implementation simply chooses the right-most
         #        match of the longest length
         prefix_indices = {prefix: text.rfind(prefix) for prefix in autocomplete_map}
+
+        # Matches autocomplete for stream + topic at the end of a text.
+        match = re.search(REGEX_AUTOCOMPLETE_STREAM_TOPIC, text)
+        if match:
+            prefix = f"#**{match.group(1)}>"
+            autocomplete_map.update({prefix: self.autocomplete_stream_and_topic})
+            prefix_indices[prefix] = match.start()
+
         found_prefix_indices = {
             prefix: index for prefix, index in prefix_indices.items() if index > -1
         }
@@ -592,6 +601,25 @@ class WriteBox(urwid.Pile):
             stream_data, text[prefix_length:], self.view.pinned_streams
         )
         return matched_data
+
+    def autocomplete_stream_and_topic(
+        self, text: str, prefix_string: str
+    ) -> Tuple[List[str], List[str]]:
+        match = re.search(REGEX_AUTOCOMPLETE_STREAM_TOPIC, text)
+
+        stream = match.group(1) if match else ""
+
+        if self.model.is_valid_stream(stream):
+            stream_id = self.model.stream_id_from_name(stream)
+            topic_names = self.model.topics_in_stream(stream_id)
+        else:
+            topic_names = []
+
+        topic_suggestions = match_topics(topic_names, text[len(prefix_string) :])
+
+        topic_typeaheads = format_string(topic_suggestions, prefix_string + "{}**")
+
+        return topic_typeaheads, topic_suggestions
 
     def autocomplete_emojis(
         self, text: str, prefix_string: str
