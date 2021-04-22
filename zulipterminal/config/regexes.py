@@ -4,3 +4,5 @@
 
 # (*) Example text: #**stream name>Topic name
 REGEX_AUTOCOMPLETE_STREAM_TOPIC = r"#\*\*([^*>]+)>([^*]*)$"
+# (*) Example text: #**stream name**>Topic name
+REGEX_AUTOCOMPLETE_STREAM_TOPIC_FENCED = r"#\*\*([^*>]+)\*\*>([^*]*)$"

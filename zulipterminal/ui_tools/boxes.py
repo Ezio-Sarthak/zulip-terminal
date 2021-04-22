@@ -20,7 +20,10 @@ from zulipterminal.config.keys import (
     keys_for_command,
     primary_key_for_command,
 )
-from zulipterminal.config.regexes import REGEX_AUTOCOMPLETE_STREAM_TOPIC
+from zulipterminal.config.regexes import (
+    REGEX_AUTOCOMPLETE_STREAM_TOPIC,
+    REGEX_AUTOCOMPLETE_STREAM_TOPIC_FENCED,
+)
 from zulipterminal.config.symbols import (
     INVALID_MARKER,
     MESSAGE_CONTENT_MARKER,
@@ -466,10 +469,21 @@ class WriteBox(urwid.Pile):
 
         # Matches autocomplete for stream + topic at the end of a text.
         match = re.search(REGEX_AUTOCOMPLETE_STREAM_TOPIC, text)
+        match_fenced = re.search(REGEX_AUTOCOMPLETE_STREAM_TOPIC_FENCED, text)
         if match:
             prefix = f"#**{match.group(1)}>"
             autocomplete_map.update({prefix: self.autocomplete_stream_and_topic})
             prefix_indices[prefix] = match.start()
+        elif match_fenced:
+            # Amending the prefix to remove stream fence `**`
+            prefix = f"#**{match_fenced.group(1)}>"
+            prefix_with_topic = prefix + match_fenced.group(2)
+
+            autocomplete_map.update({prefix: self.autocomplete_stream_and_topic})
+            prefix_indices[prefix] = match_fenced.start()
+
+            # Amending the text to have new prefix (without `**` fence)
+            text = text[: match_fenced.start()] + prefix_with_topic
 
         found_prefix_indices = {
             prefix: index for prefix, index in prefix_indices.items() if index > -1
