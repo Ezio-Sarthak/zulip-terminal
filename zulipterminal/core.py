@@ -26,6 +26,7 @@ from zulipterminal.ui_tools.views import (
     FullRawMsgView,
     FullRenderedMsgView,
     HelpView,
+    MarkdownHelpView,
     MsgInfoView,
     NoticeView,
     PopUpConfirmationView,
@@ -240,6 +241,12 @@ class Controller:
     def show_help(self) -> None:
         help_view = HelpView(self, "Help Menu (up/down scrolls)")
         self.show_pop_up(help_view, "area:help")
+
+    def show_markdown_help(self) -> None:
+        markdown_view = MarkdownHelpView(
+            self, "Markdown Help Menu (up/down scrolls)", self.model.server_url
+        )
+        self.show_pop_up(markdown_view, "area:help")
 
     def show_topic_edit_mode(self, button: Any) -> None:
         self.show_pop_up(EditModeView(self, button), "area:msg")
