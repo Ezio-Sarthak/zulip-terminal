@@ -944,7 +944,7 @@ class LeftColumnView(urwid.Pile):
         return super().keypress(size, key)
 
 
-PopUpViewTableContent = Sequence[Tuple[str, Sequence[Union[str, Tuple[str, str]]]]]
+PopUpViewTableContent = Sequence[Tuple[str, Sequence[Union[str, Tuple[Any, Any]]]]]
 
 
 class PopUpView(urwid.Frame):
