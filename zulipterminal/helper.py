@@ -737,7 +737,9 @@ def suppress_output() -> Iterator[None]:
 
 
 @asynch
-def process_media(controller: Any, media_link: str) -> None:
+def process_media(
+    controller: Any, media_link: str, callback: Callable[..., None]
+) -> None:
     media_name = media_link.split("/")[-1]
     client = controller.client
     auth = requests.auth.HTTPBasicAuth(client.email, client.api_key)
@@ -751,9 +753,7 @@ def process_media(controller: Any, media_link: str) -> None:
             for chunk in r.iter_content(chunk_size=8192):
                 if chunk:  # Filter out keep-alive new chunks.
                     f.write(chunk)
-                    controller.view.set_footer_text(
-                        [" Downloading ", ("bold", media_name)]
-                    )
+                    callback([" Downloading ", ("bold", media_name)])
 
         controller.report_success([" Downloaded ", ("bold", media_name)])
 

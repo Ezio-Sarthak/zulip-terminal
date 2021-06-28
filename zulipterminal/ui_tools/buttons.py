@@ -368,13 +368,14 @@ class MessageLinkButton(urwid.Button):
         Classifies and handles link.
         """
         server_url = self.model.server_url
+        controller = self.controller
         if self.link.startswith(urljoin(server_url, "/#narrow/")):
             self.handle_narrow_link()
         elif self.link.startswith(urljoin(server_url, "/user_uploads/")):
             # Exit pop-up promptly, let the media download in the background.
-            if isinstance(self.controller.loop.widget, urwid.Overlay):
-                self.controller.exit_popup()
-            process_media(self.controller, self.link)
+            if isinstance(controller.loop.widget, urwid.Overlay):
+                controller.exit_popup()
+            process_media(controller, self.link, controller.view.set_footer_text)
 
     @staticmethod
     def _decode_stream_data(encoded_stream_data: str) -> DecodedStream:

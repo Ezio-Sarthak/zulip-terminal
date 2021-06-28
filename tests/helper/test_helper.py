@@ -509,6 +509,7 @@ def test_process_media(
 ):
     mocker.patch("zulipterminal.helper.requests")
     mocker.patch("zulipterminal.helper.open")
+    callback = mocker.patch("zulipterminal.ui.View.set_footer_text")
     (
         mocker.patch(
             "zulipterminal.helper.NamedTemporaryFile"
@@ -519,7 +520,7 @@ def test_process_media(
     controller = mocker.Mock()
     mocked_open_media = mocker.patch("zulipterminal.helper.open_media")
 
-    process_media(controller, media_link)
+    process_media(controller, media_link, callback)
 
     mocked_open_media.assert_called_once_with(
         controller, f"xdg-open {media_path}", "xdg-open"
