@@ -444,6 +444,56 @@ class TestMessageLinkButton:
                     "stream": {"stream_id": 1, "stream_name": None},
                 },
             ),
+            (
+                SERVER_URL + "/#narrow/pm-with/1,2-pm",
+                {
+                    "narrow": "pm-with",
+                    "pm_with": {"type": Literal["pm"], "recipient_ids": [1, 2]},
+                },
+            ),
+            (
+                SERVER_URL + "/#narrow/pm-with/1,2-group",
+                {
+                    "narrow": "pm-with",
+                    "pm_with": {"type": Literal["pm"], "recipient_ids": [1, 2]},
+                },
+            ),
+            (
+                SERVER_URL + "/#narrow/pm-with/1-user1",
+                {
+                    "narrow": "pm-with",
+                    "pm_with": {"type": Literal["pm"], "recipient_ids": [1]},
+                },
+            ),
+            (
+                SERVER_URL + "/#narrow/pm-with/1-bot-name",
+                {
+                    "narrow": "pm-with",
+                    "pm_with": {"type": Literal["pm"], "recipient_ids": [1]},
+                },
+            ),
+            (
+                SERVER_URL + "/#narrow/pm-with/1,2-pm/near/1",
+                {
+                    "narrow": "pm-with:near",
+                    "message_id": 1,
+                    "pm_with": {"type": Literal["pm"], "recipient_ids": [1, 2]},
+                },
+            ),
+            (
+                SERVER_URL + "/#narrow/pm-with/1,2,3-pm",
+                {
+                    "narrow": "pm-with",
+                    "pm_with": {"type": Literal["group"], "recipient_ids": [1, 2, 3]},
+                },
+            ),
+            (
+                SERVER_URL + "/#narrow/pm-with/1,2,3-group",
+                {
+                    "narrow": "pm-with",
+                    "pm_with": {"type": Literal["group"], "recipient_ids": [1, 2, 3]},
+                },
+            ),
             (SERVER_URL + "/#narrow/foo", {}),
             (SERVER_URL + "/#narrow/stream/", {}),
             (SERVER_URL + "/#narrow/stream/1-Stream-1/topic/", {}),
@@ -456,6 +506,13 @@ class TestMessageLinkButton:
             "topic_narrow_link",
             "stream_near_narrow_link",
             "topic_near_narrow_link",
+            "pm_with_two_recipients_narrow_link",
+            "group_pm_with_two_recipients_narrow_link",
+            "pm_exposed_format_1_narrow_link",
+            "pm_with_bot_exposed_format_1_narrow_link",
+            "common_pm_near_narrow_link",
+            "pm_with_more_than_two_recipients_narrow_link",
+            "group_pm_with_more_than_two_recipients_narrow_link",
             "invalid_narrow_link_1",
             "invalid_narrow_link_2",
             "invalid_narrow_link_3",
@@ -464,7 +521,7 @@ class TestMessageLinkButton:
         ],
     )
     def test__parse_narrow_link(self, link, expected_parsed_link):
-        return_value = MessageLinkButton._parse_narrow_link(link)
+        return_value = MessageLinkButton._parse_narrow_link(link, 1)
 
         assert return_value == expected_parsed_link
 
@@ -696,7 +753,12 @@ class TestMessageLinkButton:
         assert error == expected_error
 
     @pytest.mark.parametrize(
-        "parsed_link, narrow_to_stream_called, narrow_to_topic_called",
+        [
+            "parsed_link",
+            "narrow_to_stream_called",
+            "narrow_to_topic_called",
+            "narrow_to_user_called",
+        ],
         [
             (
                 {
@@ -704,6 +766,7 @@ class TestMessageLinkButton:
                     "stream": {"stream_id": 1, "stream_name": "Stream 1"},
                 },
                 True,
+                False,
                 False,
             ),
             (
@@ -714,6 +777,7 @@ class TestMessageLinkButton:
                 },
                 False,
                 True,
+                False,
             ),
             (
                 {
@@ -722,6 +786,7 @@ class TestMessageLinkButton:
                     "stream": {"stream_id": 1, "stream_name": "Stream 1"},
                 },
                 True,
+                False,
                 False,
             ),
             (
@@ -733,6 +798,51 @@ class TestMessageLinkButton:
                 },
                 False,
                 True,
+                False,
+            ),
+            (
+                {
+                    "narrow": "pm-with",
+                    "pm_with": {"type": Literal["pm"], "recipient_ids": [11, 12]},
+                },
+                False,
+                False,
+                True,
+            ),
+            (
+                {
+                    "narrow": "pm-with",
+                    "pm_with": {
+                        "type": Literal["group"],
+                        "recipient_ids": [11, 12, 13],
+                    },
+                },
+                False,
+                False,
+                True,
+            ),
+            (
+                {
+                    "narrow": "pm-with:near",
+                    "message_id": 1,
+                    "pm_with": {"type": Literal["pm"], "recipient_ids": [11, 12]},
+                },
+                False,
+                False,
+                True,
+            ),
+            (
+                {
+                    "narrow": "pm-with:near",
+                    "message_id": 1,
+                    "pm_with": {
+                        "type": Literal["group"],
+                        "recipient_ids": [11, 12, 13],
+                    },
+                },
+                False,
+                False,
+                True,
             ),
         ],
         ids=[
@@ -740,6 +850,10 @@ class TestMessageLinkButton:
             "topic_narrow",
             "stream_near_narrow",
             "topic_near_narrow",
+            "pm_narrow",
+            "group_pm_narrow",
+            "pm_near_narrow",
+            "group_pm_near_narrow",
         ],
     )
     def test__switch_narrow_to(
@@ -747,8 +861,12 @@ class TestMessageLinkButton:
         parsed_link,
         narrow_to_stream_called,
         narrow_to_topic_called,
+        narrow_to_user_called,
+        _all_users_by_id,
     ):
         mocked_button = self.message_link_button()
+        # For PM narrow switch
+        mocked_button.model._all_users_by_id = _all_users_by_id
 
         mocked_button._switch_narrow_to(parsed_link)
 
@@ -756,6 +874,7 @@ class TestMessageLinkButton:
             mocked_button.controller.narrow_to_stream.called == narrow_to_stream_called
         )
         assert mocked_button.controller.narrow_to_topic.called == narrow_to_topic_called
+        assert mocked_button.controller.narrow_to_user.called == narrow_to_user_called
 
     @pytest.mark.parametrize(
         "error, report_error_called, _switch_narrow_to_called, exit_popup_called",

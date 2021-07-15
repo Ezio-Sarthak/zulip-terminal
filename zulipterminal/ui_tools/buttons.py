@@ -391,7 +391,7 @@ class MessageLinkButton(urwid.Button):
         recipient_ids_list = list(map(int, recipient_ids.split(",")))
 
         no_of_recipients = len(recipient_ids_list)
-        # Bump no. of recipients tp include current user_id if not already
+        # Bump no. of recipients to include current user_id if not already
         # present
         if user_id not in recipient_ids_list:
             no_of_recipients += 1
@@ -413,7 +413,7 @@ class MessageLinkButton(urwid.Button):
             return None
 
     @classmethod
-    def _parse_narrow_link(cls, link: str) -> ParsedNarrowLink:
+    def _parse_narrow_link(cls, link: str, user_id: int) -> ParsedNarrowLink:
         """
         Returns either a dict with narrow parameters for supported links or an
         empty dict.
@@ -472,6 +472,19 @@ class MessageLinkButton(urwid.Button):
                 topic_name=topic_name,
                 message_id=message_id,
             )
+
+        elif (
+            len_fragments == 5 and fragments[1] == "pm-with" and fragments[3] == "near"
+        ):
+            pm_data = cls._decode_pm_data(fragments[2], user_id)
+            message_id = cls._decode_message_id(fragments[4])
+            parsed_link = dict(
+                narrow="pm-with:near", pm_with=pm_data, message_id=message_id
+            )
+
+        elif len_fragments == 3 and fragments[1] == "pm-with":
+            pm_data = cls._decode_pm_data(fragments[2], user_id)
+            parsed_link = dict(narrow="pm-with", pm_with=pm_data)
 
         return parsed_link
 
@@ -561,13 +574,29 @@ class MessageLinkButton(urwid.Button):
                 topic_name=parsed_link["topic_name"],
                 contextual_message_id=parsed_link["message_id"],
             )
+        elif "pm-with:near" == narrow:
+            emails = list(
+                self.model._all_users_by_id.get(user_id)["email"]
+                for user_id in parsed_link["pm_with"]["recipient_ids"]
+            )
+            self.controller.narrow_to_user(
+                recipient_emails=emails,
+                contextual_message_id=parsed_link["message_id"],
+            )
+
+        elif "pm-with" == narrow:
+            emails = list(
+                self.model._all_users_by_id.get(user_id)["email"]
+                for user_id in parsed_link["pm_with"]["recipient_ids"]
+            )
+            self.controller.narrow_to_user(recipient_emails=emails)
 
     def handle_narrow_link(self) -> None:
         """
         Narrows to the respective narrow if the narrow link is valid or updates
         the footer with an appropriate validation error message.
         """
-        parsed_link = self._parse_narrow_link(self.link)
+        parsed_link = self._parse_narrow_link(self.link, self.model.user_id)
         error = self._validate_narrow_link(parsed_link)
 
         if error:
