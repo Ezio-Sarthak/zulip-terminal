@@ -2,6 +2,7 @@ from typing import Any, Dict
 
 import pytest
 from pytest import param as case
+from typing_extensions import Literal
 from urwid import AttrMap, Overlay
 
 from zulipterminal.config.keys import keys_for_command
@@ -361,6 +362,34 @@ class TestMessageLinkButton:
     )
     def test__decode_stream_data(self, stream_data, expected_response):
         return_value = MessageLinkButton._decode_stream_data(stream_data)
+
+        assert return_value == expected_response
+
+    @pytest.mark.parametrize(
+        "pm_data, expected_response",
+        [
+            ("1,2-pm", dict(recipient_ids=[1, 2], type=Literal["pm"])),
+            ("1,2-group", dict(recipient_ids=[1, 2], type=Literal["pm"])),
+            ("1,2,3-pm", dict(recipient_ids=[1, 2, 3], type=Literal["group"])),
+            ("1,2,3-group", dict(recipient_ids=[1, 2, 3], type=Literal["group"])),
+            ("1-user1", dict(recipient_ids=[1], type=Literal["pm"])),
+            ("1-user2", dict(recipient_ids=[1], type=Literal["pm"])),
+            ("1-bot-name", dict(recipient_ids=[1], type=Literal["pm"])),
+            ("1-bot;name", dict(recipient_ids=[1], type=Literal["pm"])),
+        ],
+        ids=[
+            "pm_with_two_recipients",
+            "group_pm_with_two_recipients",
+            "pm_with_more_than_two_recipients",
+            "group_pm_with_more_than_two_recipients",
+            "pm_exposed_format_1_ordinary",
+            "pm_exposed_format_1_ambigous",
+            "pm_with_bot_exposed_format_1_ordinary",
+            "pm_with_bot_exposed_format_1_ambigous",
+        ],
+    )
+    def test__decode_pm_data(self, pm_data, expected_response):
+        return_value = MessageLinkButton._decode_pm_data(pm_data, 2)
 
         assert return_value == expected_response
 

@@ -1,10 +1,10 @@
 import re
 from functools import partial
-from typing import Any, Callable, Dict, Optional, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 from urllib.parse import urljoin, urlparse
 
 import urwid
-from typing_extensions import TypedDict
+from typing_extensions import Literal, TypedDict
 
 from zulipterminal.api_types import EditPropagateMode
 from zulipterminal.config.keys import is_command_key, primary_key_for_command
@@ -322,9 +322,15 @@ class DecodedStream(TypedDict):
     stream_name: Optional[str]
 
 
+class DecodedPM(TypedDict):
+    type: Literal["pm", "group"]
+    recipient_ids: List[int]
+
+
 class ParsedNarrowLink(TypedDict, total=False):
     narrow: str
     stream: DecodedStream
+    pm_with: DecodedPM
     topic_name: str
     message_id: Optional[int]
 
@@ -376,6 +382,27 @@ class MessageLinkButton(urwid.Button):
             return DecodedStream(stream_id=None, stream_name=stream_name)
 
     @staticmethod
+    def _decode_pm_data(recipient_data: str, user_id: int) -> DecodedPM:
+        """
+        Returns a dict with PM type and IDs of PM recipients.
+        """
+        # Recipient ids (seperated by `,`) are of prime interest.
+        recipient_ids, *_ = recipient_data.split("-")
+        recipient_ids_list = list(map(int, recipient_ids.split(",")))
+
+        no_of_recipients = len(recipient_ids_list)
+        # Bump no. of recipients tp include current user_id if not already
+        # present
+        if user_id not in recipient_ids_list:
+            no_of_recipients += 1
+
+        # Currently webapp uses `pm` and `group` suffix interchangeably.
+        # Treat more-than-2 pms to group pms to avoid confusion.
+        pm_type = "pm" if no_of_recipients < 3 else "group"
+
+        return DecodedPM(type=Literal[pm_type], recipient_ids=recipient_ids_list)
+
+    @staticmethod
     def _decode_message_id(message_id: str) -> Optional[int]:
         """
         Returns either the compatible near message ID or None.
@@ -400,6 +427,12 @@ class MessageLinkButton(urwid.Button):
         #    {encoded.20topic.20name}
         # d. narrow/stream/[{stream_id}-]{stream-name}/topic/
         #    {encoded.20topic.20name}/near/{message_id}
+        # e. narrow/pm-with/[{recipient_ids},]-{pm-type}
+        # f. narrow/pm-with/[{recipient_ids},]-{pm-type}/near/{message_id}
+        # g. narrow/pm-with/{user_id}-user{user_id}
+        # h. narrow/pm-with/{user_id}-user{user_id}/near/{message_id}
+        # i. narrow/pm-with/{bot_id}-{bot-name}
+        # j. narrow/pm-with/{bot_id}-{bot-name}/near/{message_id}
         fragments = urlparse(link.rstrip("/")).fragment.split("/")
         len_fragments = len(fragments)
         parsed_link = ParsedNarrowLink()
